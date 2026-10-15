@@ -15,14 +15,14 @@ Put `ModUploader-request.json` in `~/Documents/Timberborn` and open the game. At
   "tags": ["the chosen tags"],
   "content": "the folder to upload, the mod's folder in Mods by default",
   "steam": true,
-  "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "..." }
+  "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "...", "tokenFile": "..." }
 }
 ```
 
 Only `mod` is required. What the request leaves out stays as the last upload from the game's panel left it.
 
 - **Steam.** The first upload of a mod goes through the game's panel, which creates the Workshop item. Steam has to be running and signed in. `"steam": false` skips it.
-- **mod.io.** Add `modio` to the request and put an OAuth2 access token with write access (an API key can only read) in `~/.config/timberempires/modio-token`. Without the token it's skipped.
+- **mod.io.** Add `modio` to the request and put an OAuth2 access token with write access (an API key can only read) in `~/.config/timberborn-mod-uploader/modio-token`, or in the file `modio.tokenFile` names. Without the token it's skipped.
 - **Required items.** `Dependencies.json`, next to the mod's DLL, maps a mod id to Workshop items. After each upload of that mod, from the panel or a request, they're added as its required items, which the panel can't do.
 
 ## Building

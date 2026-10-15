@@ -27,15 +27,15 @@ namespace ModUploader
      *     "tags": ["the chosen tags"],
      *     "content": "the folder to upload, the mod's folder in Mods by default",
      *     "steam": true,
-     *     "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "..." }
+     *     "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "...", "tokenFile": "..." }
      *   }
      *
      * What the request leaves out stays as the last upload from the game's
      * panel left it (name, description, visibility, tags and thumbnail, by its
      * toggles). Only items the panel created once (workshop_data.json) can be
      * updated. "steam": false skips the Workshop. mod.io needs "modio" and an
-     * OAuth2 access token with write access in ~/.config/timberempires/modio-token;
-     * without the token it's skipped. ModUploader-request.json.result gets a
+     * OAuth2 access token with write access in the file "tokenFile" names,
+     * ~/.config/timberborn-mod-uploader/modio-token by default; without the token it's skipped. ModUploader-request.json.result gets a
      * line for each target: "steam ok <item id>", "modio ok <file id>" or
      * "<target> failed <reason>".
      */
@@ -44,7 +44,7 @@ namespace ModUploader
         private static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Documents", "Timberborn");
         private static string Flag => Path.Combine(Folder, "ModUploader-request.json");
         private static string Result => Flag + ".result";
-        private static string TokenFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".config", "timberempires", "modio-token");
+        private static string DefaultTokenFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".config", "timberborn-mod-uploader", "modio-token");
 
         private readonly ModRepository _modRepository;
         // The Steam parts are fetched only for an upload, so copies without Steam never need them
@@ -169,13 +169,14 @@ namespace ModUploader
                 Done();
                 return;
             }
-            if (!File.Exists(TokenFile))
+            string tokenFile = (string)modio["tokenFile"] ?? DefaultTokenFile;
+            if (!File.Exists(tokenFile))
             {
-                Plugin.Log("No mod.io token: skipping mod.io");
+                Plugin.Log($"No mod.io token in {tokenFile}: skipping mod.io");
                 Done();
                 return;
             }
-            string token = File.ReadAllText(TokenFile).Trim();
+            string token = File.ReadAllText(tokenFile).Trim();
             string changelog = Text(request, "changelog") ?? "";
             _modio = System.Threading.Tasks.Task.Run(() => ModIo.Upload((string)modio["game"], (string)modio["mod"], (string)modio["zip"],
                 (string)modio["version"] ?? "", changelog, modio["active"]?.Value<bool>() ?? true, (string)modio["metadata"], token));
