@@ -26,14 +26,17 @@ namespace ModUploader
      *     "visibility": "Private | Friends | Public | Unlisted",
      *     "tags": ["the chosen tags"],
      *     "content": "the folder to upload, the mod's folder in Mods by default",
+     *     "create": false,
      *     "steam": true,
      *     "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "...", "tokenFile": "..." }
      *   }
      *
      * What the request leaves out stays as the last upload from the game's
      * panel left it (name, description, visibility, tags and thumbnail, by its
-     * toggles). Only items the panel created once (workshop_data.json) can be
-     * updated. "steam": false skips the Workshop. mod.io needs "modio" and an
+     * toggles). Only items created once (workshop_data.json) can be
+     * updated, unless "create" is true: then a mod with no item gets one made
+     * (private unless "visibility" says otherwise) before its first upload.
+     * "steam": false skips the Workshop. mod.io needs "modio" and an
      * OAuth2 access token with write access in the file "tokenFile" names,
      * ~/.config/timberborn-mod-uploader/modio-token by default; without the token it's skipped. ModUploader-request.json.result gets a
      * line for each target: "steam ok <item id>", "modio ok <file id>" or
@@ -120,13 +123,43 @@ namespace ModUploader
                 return;
             }
             var uploadable = _container.GetInstance<SteamWorkshopUploadableModFactory>().Create(mod);
-            if (!uploadable.ItemId.HasValue)
+            if (uploadable.ItemId.HasValue)
             {
-                uploadable.Clear();
-                Fail($"{id} was never uploaded: do the first upload from the game's panel", request);
+                Update(request, mod, uploadable);
                 return;
             }
+            if (request["create"]?.Value<bool>() != true)
+            {
+                uploadable.Clear();
+                Fail($"{id} has no Workshop item: set \"create\" to make it", request);
+                return;
+            }
+            string name = (string)request["title"] ?? uploadable.Name;
+            var visibility = Visibility(request) ?? SteamWorkshopVisibility.Private;
+            var tags = request["tags"] is JArray chosen ? chosen.Select(t => (string)t).ToList() : new List<string>();
+            _container.GetInstance<SteamWorkshopItemCreator>().CreateItem(response =>
+            {
+                if (!response.Successful)
+                {
+                    uploadable.Clear();
+                    Fail($"couldn't create the item: {response.ResultMessage}", request);
+                    return;
+                }
+                // Saved the way the panel saves a new item, so the next upload finds it
+                uploadable.OnItemCreated(response.ItemId, name, visibility, tags);
+                uploadable.Clear();
+                Update(request, mod, _container.GetInstance<SteamWorkshopUploadableModFactory>().Create(mod));
+            });
+        }
 
+        private static SteamWorkshopVisibility? Visibility(JObject request)
+        {
+            string text = (string)request["visibility"];
+            return text == null ? (SteamWorkshopVisibility?)null : (SteamWorkshopVisibility)Enum.Parse(typeof(SteamWorkshopVisibility), text, true);
+        }
+
+        private void Update(JObject request, Mod mod, SteamWorkshopUploadableMod uploadable)
+        {
             // As UploadPanelElements builds it, with the panel's toggles as they were left, unless the request says otherwise
             var builder = new SteamWorkshopUpdateRequest.Builder(uploadable.ItemId.Value, (string)request["title"] ?? uploadable.Name)
                 .SetContentPath((string)request["content"] ?? uploadable.ContentPath);
@@ -134,8 +167,8 @@ namespace ModUploader
             string description = Text(request, "description");
             if (description != null) builder.SetDescription(description);
             else if (uploadable.UpdateDescription) builder.SetDescription(uploadable.Description);
-            string visibility = (string)request["visibility"];
-            if (visibility != null) builder.SetVisibility((SteamWorkshopVisibility)Enum.Parse(typeof(SteamWorkshopVisibility), visibility, true));
+            var visibility = Visibility(request);
+            if (visibility != null) builder.SetVisibility(visibility);
             else if (uploadable.UpdateVisibility) builder.SetVisibility(uploadable.Visibility);
             string preview = (string)request["preview"];
             if (preview != null) builder.SetPreviewPath(preview);
