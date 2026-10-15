@@ -25,8 +25,9 @@ $token = Join-Path $env:USERPROFILE ".config\timberborn-mod-uploader\modio-token
 # The newest entry: from its v<version> line to the first empty line
 $lines = Get-Content $changelog
 $version = $lines[0] -replace "^v", ""
-$note = ($lines | Select-Object -Skip 1 | Where-Object { $_ -ne "" } | Select-Object -First ([array]::IndexOf(($lines | Select-Object -Skip 1), "")) ) -join "`n"
-if (-not $note) { $note = ($lines | Select-Object -Skip 1) -join "`n" }
+$entry = @()
+foreach ($line in $lines | Select-Object -Skip 1) { if ($line -eq "") { break }; $entry += $line }
+$note = $entry -join "`n"
 $manifest = Get-ChildItem (Join-Path $timberborn "Mods\$id") -Recurse -Filter manifest.json | Sort-Object FullName | Select-Object -Last 1
 $have = (Get-Content $manifest.FullName -Raw | ConvertFrom-Json).Version
 if ($have -ne $version) { throw "Mods has $id $have, the changelog is at ${version}: release first" }
