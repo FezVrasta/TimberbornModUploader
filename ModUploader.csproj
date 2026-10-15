@@ -57,6 +57,8 @@
       <FilesToCopy Include="$(ProjectDir)$(OutDir)**\*" Exclude="$(ProjectDir)$(OutDir)0Harmony.*;$(ProjectDir)$(OutDir)System.*" />
     </ItemGroup>
     <RemoveDir Directories="$(VersionOutputPath)" />
+    <!-- The picture the mod list and the workshop show, beside the version folders -->
+    <Copy SourceFiles="$(ProjectDir)thumbnail.png" DestinationFolder="$(ModPath)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)thumbnail.png')" />
     <MakeDir Directories="$(VersionOutputPath)" />
     <Copy SourceFiles="@(FilesToCopy)" DestinationFiles="@(FilesToCopy->'$(VersionOutputPath)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
