@@ -2,7 +2,7 @@
 
 A Timberborn mod for release scripts. It uploads a mod to the Steam Workshop, and to mod.io, from a request file instead of the game's upload panel.
 
-Put `ModUploader-request.json` in `~/Documents/Timberborn` and open the game. At the main menu the mod reads it, uploads, and writes the outcome to `ModUploader-request.json.result`, one line per target: `steam ok <item id>`, `modio ok <file id>` or `<target> failed <reason>`. `examples/upload.sh` is a release script that does this: it starts the game, waits for the result and closes the game again.
+Put `ModUploader-request.json` in your Timberborn folder (`~/Documents/Timberborn`, `%USERPROFILE%\Documents\Timberborn` on Windows) and open the game. At the main menu the mod reads it, uploads, and writes the outcome to `ModUploader-request.json.result`, one line per target: `steam ok <item id>`, `modio ok <file id>` or `<target> failed <reason>`. `examples/upload.sh` is a macOS release script that does this: it starts the game, waits for the result and closes the game again.
 
 ```json
 {
@@ -22,7 +22,7 @@ Put `ModUploader-request.json` in `~/Documents/Timberborn` and open the game. At
 Only `mod` is required. What the request leaves out stays as the last upload from the game's panel left it.
 
 - **Steam.** The first upload of a mod goes through the game's panel, which creates the Workshop item. Steam has to be running and signed in. `"steam": false` skips it.
-- **mod.io.** Add `modio` to the request and put an OAuth2 access token with write access (an API key can only read) in `~/.config/timberborn-mod-uploader/modio-token`, or in the file `modio.tokenFile` names. Without the token it's skipped.
+- **mod.io.** Add `modio` to the request and put an OAuth2 access token with write access (an API key can only read) in `~/.config/timberborn-mod-uploader/modio-token` (under your user profile on Windows), or in the file `modio.tokenFile` names. Without the token it's skipped.
 - **Required items.** `Dependencies.json`, next to the mod's DLL, maps a mod id to Workshop items. After each upload of that mod, from the panel or a request, they're added as its required items, which the panel can't do.
 
 ## Building

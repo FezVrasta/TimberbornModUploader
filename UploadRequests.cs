@@ -41,10 +41,12 @@ namespace ModUploader
      */
     public class UploadRequests : IUpdatableSingleton
     {
-        private static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Documents", "Timberborn");
+        private static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        // Windows has Documents known to the system (it may not sit under the profile), elsewhere it's under the home folder
+        private static string Folder => Path.Combine(Path.DirectorySeparatorChar == '\\' ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.Combine(Home, "Documents"), "Timberborn");
         private static string Flag => Path.Combine(Folder, "ModUploader-request.json");
         private static string Result => Flag + ".result";
-        private static string DefaultTokenFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".config", "timberborn-mod-uploader", "modio-token");
+        private static string DefaultTokenFile => Path.Combine(Home, ".config", "timberborn-mod-uploader", "modio-token");
 
         private readonly ModRepository _modRepository;
         // The Steam parts are fetched only for an upload, so copies without Steam never need them
