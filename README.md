@@ -2,7 +2,7 @@
 
 A Timberborn mod for release scripts. It uploads a mod to the Steam Workshop, and to mod.io, from a request file instead of the game's upload panel.
 
-Put `ModUploader-request.json` in your Timberborn folder (`~/Documents/Timberborn`, `%USERPROFILE%\Documents\Timberborn` on Windows) and open the game. At the main menu the mod reads it, uploads, and writes the outcome to `ModUploader-request.json.result`, one line per target: `steam ok <item id>`, `modio ok <file id>` or `<target> failed <reason>`. `examples/upload.sh` is a macOS release script that does this: it starts the game, waits for the result and closes the game again.
+Put `ModUploader-request.json` in your Timberborn folder (`~/Documents/Timberborn`, `%USERPROFILE%\Documents\Timberborn` on Windows) and open the game. At the main menu the mod reads it, uploads, and writes the outcome to `ModUploader-request.json.result`, one line per target: `steam ok <item id>`, `modio ok <file id>` or `<target> failed <reason>`. `examples/upload.sh` (macOS) and `examples/upload.ps1` (Windows, untested) are release scripts that does this: it starts the game, waits for the result and closes the game again.
 
 ```json
 {
