@@ -1,0 +1,5 @@
+env.props
+bin/
+obj/
+.vs/
+*.user

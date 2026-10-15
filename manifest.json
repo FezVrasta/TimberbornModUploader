@@ -1,0 +1,10 @@
+{
+  "Name": "Mod Uploader",
+  "Version": "0.1.0",
+  "Id": "modUploader",
+  "MinimumGameVersion": "1.1.0.0",
+  "Description": "Developer tool. Uploads mods to the Steam Workshop, and to mod.io, from a request file, without the upload panel.",
+  "RequiredMods": [
+    { "Id": "Harmony" }
+  ]
+}
