@@ -19,7 +19,7 @@ Put `ModUploader-request.json` in your Timberborn folder (`~/Documents/Timberbor
 }
 ```
 
-Real ones: [Timber Empires](https://github.com/FezVrasta/TimberEmpires/blob/main/Tools/Package/upload.sh) and [BeaverBuddies](https://github.com/FezVrasta/BeaverBuddies-CoOp-PvP-Edition/blob/master/Tools/Package/upload.sh) upload through it with their own `upload.sh`.
+A real one: [BeaverBuddies' `upload.sh`](https://github.com/FezVrasta/BeaverBuddies-CoOp-PvP-Edition/blob/master/Tools/Package/upload.sh) uploads through it.
 
 Only `mod` is required, and `create` for a mod's first upload. What the request leaves out is sent as the last upload left it (the mod's manifest description and thumbnail, by default). To leave the Workshop's description, visibility, preview or tags alone, set `updateDescription`, `updateVisibility`, `updatePreview` or `updateTags` to `false`: `examples/changelog-only.json` uploads just the content and the change note. `examples/request.json` sets everything. The title is always sent.
 
