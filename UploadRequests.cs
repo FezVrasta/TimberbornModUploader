@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Bindito.Core;
+using Newtonsoft.Json.Linq;
 using Timberborn.Modding;
 using Timberborn.SingletonSystem;
 using Timberborn.SteamStoreSystem;
@@ -13,27 +14,35 @@ using UnityEngine;
 namespace ModUploader
 {
     /**
-     * A file named ModUploader-request in Documents/Timberborn starts an upload:
+     * A file named ModUploader-request.json in Documents/Timberborn starts an
+     * upload. Every key but "mod" is optional:
      *
-     *   mod: a mod's id or folder name
-     *   modio-game: the mod.io game id          (these three make the mod.io upload,
-     *   modio-mod: the mod's id on mod.io        which also needs the token below)
-     *   modio-zip: the zip to upload
-     *   (an empty line)
-     *   the change note
+     *   {
+     *     "mod": "a mod's id or folder name",
+     *     "title": "the Workshop item's title",
+     *     "description": "...", "descriptionFile": "a file with it",
+     *     "changelog": "...", "changelogFile": "a file with it",
+     *     "preview": "path to the preview image",
+     *     "visibility": "Private | Friends | Public | Unlisted",
+     *     "tags": ["the chosen tags"],
+     *     "content": "the folder to upload, the mod's folder in Mods by default",
+     *     "steam": true,
+     *     "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "..." }
+     *   }
      *
-     * The Steam Workshop item is updated from the mod's folder in Mods, with
-     * name, description, visibility, tags and thumbnail as the last upload from
-     * the game's panel left its toggles. Only items the panel created once
-     * (workshop_data.json) can be updated. mod.io needs an OAuth2 access token
-     * with write access in ~/.config/timberempires/modio-token; without one it's
-     * skipped. ModUploader-request.result gets a line for each: "steam ok
-     * <item id>", "modio ok <file id>", or "<target> failed <reason>".
+     * What the request leaves out stays as the last upload from the game's
+     * panel left it (name, description, visibility, tags and thumbnail, by its
+     * toggles). Only items the panel created once (workshop_data.json) can be
+     * updated. "steam": false skips the Workshop. mod.io needs "modio" and an
+     * OAuth2 access token with write access in ~/.config/timberempires/modio-token;
+     * without the token it's skipped. ModUploader-request.json.result gets a
+     * line for each target: "steam ok <item id>", "modio ok <file id>" or
+     * "<target> failed <reason>".
      */
     public class UploadRequests : IUpdatableSingleton
     {
         private static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Documents", "Timberborn");
-        private static string Flag => Path.Combine(Folder, "ModUploader-request");
+        private static string Flag => Path.Combine(Folder, "ModUploader-request.json");
         private static string Result => Flag + ".result";
         private static string TokenFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".config", "timberempires", "modio-token");
 
@@ -63,81 +72,99 @@ namespace ModUploader
             if (_busy || Time.unscaledTime < _nextPoll) return;
             _nextPoll = Time.unscaledTime + 0.5f;
             if (!File.Exists(Flag)) return;
-            string[] lines = File.ReadAllLines(Flag);
+            string text = File.ReadAllText(Flag);
             File.Delete(Flag);
             File.Delete(Result);
-            var header = new Dictionary<string, string>();
-            int i = 0;
-            for (; i < lines.Length && lines[i].Trim().Length > 0; i++)
-            {
-                int colon = lines[i].IndexOf(':');
-                if (colon > 0) header[lines[i].Substring(0, colon).Trim()] = lines[i].Substring(colon + 1).Trim();
-            }
-            string note = string.Join("\n", lines.Skip(i)).Trim();
             _busy = true;
             _outcomes.Clear();
+            JObject request;
             try
             {
-                header.TryGetValue("mod", out string id);
-                UploadToSteam(id, note, header);
+                request = JObject.Parse(text);
+                if (request["steam"]?.Value<bool>() == false)
+                {
+                    StartModIo(request);
+                    return;
+                }
+                UploadToSteam(request);
             }
             catch (Exception e)
             {
                 _outcomes.Add($"steam failed {e.Message}");
-                StartModIo(header, note);
+                Done();
             }
         }
 
-        private void UploadToSteam(string id, string note, Dictionary<string, string> header)
+        // A text from the request: the key itself, or the file named by key + "File"
+        private static string Text(JObject request, string key)
         {
+            string file = (string)request[key + "File"];
+            if (file != null) return File.ReadAllText(file).Trim();
+            return (string)request[key];
+        }
+
+        private void UploadToSteam(JObject request)
+        {
+            string id = (string)request["mod"];
             if (!_container.GetInstance<SteamManager>().Initialized)
             {
-                _outcomes.Add("steam failed Steam isn't running");
-                StartModIo(header, note);
+                Fail("Steam isn't running", request);
                 return;
             }
             Mod mod = _modRepository.UserMods.FirstOrDefault(m => m.Manifest.Id == id || m.ModDirectory.OriginName == id);
             if (mod == null)
             {
-                _outcomes.Add($"steam failed no mod {id} in Mods");
-                StartModIo(header, note);
+                Fail($"no mod {id} in Mods", request);
                 return;
             }
             var uploadable = _container.GetInstance<SteamWorkshopUploadableModFactory>().Create(mod);
             if (!uploadable.ItemId.HasValue)
             {
                 uploadable.Clear();
-                _outcomes.Add($"steam failed {id} was never uploaded: do the first upload from the game's panel");
-                StartModIo(header, note);
+                Fail($"{id} was never uploaded: do the first upload from the game's panel", request);
                 return;
             }
 
-            // As UploadPanelElements builds it, with the panel's toggles as they were left
-            var builder = new SteamWorkshopUpdateRequest.Builder(uploadable.ItemId.Value, uploadable.Name).SetContentPath(uploadable.ContentPath);
-            builder.SetChangelog(note);
-            if (uploadable.UpdateDescription) builder.SetDescription(uploadable.Description);
-            if (uploadable.UpdateVisibility) builder.SetVisibility(uploadable.Visibility);
-            if (uploadable.UpdatePreview) builder.SetPreviewPath(uploadable.PreviewPath);
-            if (uploadable.UpdateTags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(uploadable.ChosenTags);
-            var request = builder.Build();
-            uploadable.OnUpdateRequestCreated(request);
+            // As UploadPanelElements builds it, with the panel's toggles as they were left, unless the request says otherwise
+            var builder = new SteamWorkshopUpdateRequest.Builder(uploadable.ItemId.Value, (string)request["title"] ?? uploadable.Name)
+                .SetContentPath((string)request["content"] ?? uploadable.ContentPath);
+            builder.SetChangelog(Text(request, "changelog") ?? "");
+            string description = Text(request, "description");
+            if (description != null) builder.SetDescription(description);
+            else if (uploadable.UpdateDescription) builder.SetDescription(uploadable.Description);
+            string visibility = (string)request["visibility"];
+            if (visibility != null) builder.SetVisibility((SteamWorkshopVisibility)Enum.Parse(typeof(SteamWorkshopVisibility), visibility, true));
+            else if (uploadable.UpdateVisibility) builder.SetVisibility(uploadable.Visibility);
+            string preview = (string)request["preview"];
+            if (preview != null) builder.SetPreviewPath(preview);
+            else if (uploadable.UpdatePreview) builder.SetPreviewPath(uploadable.PreviewPath);
+            if (request["tags"] is JArray tags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(tags.Select(t => (string)t));
+            else if (uploadable.UpdateTags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(uploadable.ChosenTags);
+            var update = builder.Build();
+            uploadable.OnUpdateRequestCreated(update);
 
             // The callback captures no Steam types: a field of one in a closure
             // fails to load on copies of the game without Steam
             Action clear = uploadable.Clear;
-            ulong item = request.ItemId;
+            ulong item = update.ItemId;
             Plugin.Log($"Uploading {mod.Manifest.Name} {mod.Manifest.Version} to item {item}");
-            _container.GetInstance<SteamWorkshopItemUpdater>().Update(request, response =>
+            _container.GetInstance<SteamWorkshopItemUpdater>().Update(update, response =>
             {
                 clear();
                 _outcomes.Add(response.Successful ? $"steam ok {item}" : $"steam failed {response.ResultMessage}");
-                StartModIo(header, note);
+                StartModIo(request);
             });
         }
 
-        private void StartModIo(Dictionary<string, string> header, string note)
+        private void Fail(string reason, JObject request)
         {
-            if (!header.TryGetValue("modio-zip", out string zip) || !header.TryGetValue("modio-game", out string game) || !header.TryGetValue("modio-mod", out string mod))
+            _outcomes.Add($"steam failed {reason}");
+            StartModIo(request);
+        }
+
+        private void StartModIo(JObject request)
+        {
+            if (!(request["modio"] is JObject modio))
             {
                 Done();
                 return;
@@ -149,8 +176,9 @@ namespace ModUploader
                 return;
             }
             string token = File.ReadAllText(TokenFile).Trim();
-            string version = header.TryGetValue("version", out string v) ? v : "";
-            _modio = System.Threading.Tasks.Task.Run(() => ModIo.Upload(game, mod, zip, version, note, token));
+            string changelog = Text(request, "changelog") ?? "";
+            _modio = System.Threading.Tasks.Task.Run(() => ModIo.Upload((string)modio["game"], (string)modio["mod"], (string)modio["zip"],
+                (string)modio["version"] ?? "", changelog, modio["active"]?.Value<bool>() ?? true, (string)modio["metadata"], token));
         }
 
         private void Done()

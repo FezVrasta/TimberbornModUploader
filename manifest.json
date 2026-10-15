@@ -3,8 +3,10 @@
   "Version": "0.1.0",
   "Id": "modUploader",
   "MinimumGameVersion": "1.1.0.0",
-  "Description": "Developer tool. Uploads mods to the Steam Workshop, and to mod.io, from a request file, without the upload panel.",
+  "Description": "[h1]Release your mods from a script.[/h1]\nFor modders. It adds nothing to the game: it uploads your mods to the Steam Workshop, and to mod.io, from a file instead of the game's upload panel.\n\n[h2]How it works[/h2]\nWrite a request file in your Timberborn folder and open the game. At the main menu, Mod Uploader reads it, uploads the mod and writes the outcome to a result file. A release script can start the game, wait for the result and close it again.\n\n[list]\n[*]The request can set the title, description, changelog, preview image, visibility and tags. What it leaves out stays as the panel's last upload left it.\n[*]mod.io is optional. Add a zip to the request and keep an access token with write access in a file, and it uploads there too.\n[*]Required items: a small file lists Workshop items to add as required items of a mod after each upload, which the panel can't do.\n[/list]\n\n[h2]Before you use it[/h2]\n[list]\n[*]The first upload of a mod still goes through the game's panel, which creates the Workshop item.\n[*]Steam has to be running and signed in.\n[/list]\n\n[h2]Format and source[/h2]\nThe request file's format and a sample release script are in the source: [url=https://github.com/FezVrasta/TimberbornModUploader]github.com/FezVrasta/TimberbornModUploader[/url]",
   "RequiredMods": [
-    { "Id": "Harmony" }
+    {
+      "Id": "Harmony"
+    }
   ]
 }

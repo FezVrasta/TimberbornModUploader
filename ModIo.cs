@@ -8,7 +8,7 @@ namespace ModUploader
     // Adds a file to a mod's page on mod.io
     internal static class ModIo
     {
-        public static string Upload(string game, string mod, string zip, string version, string note, string token)
+        public static string Upload(string game, string mod, string zip, string version, string note, bool active, string metadata, string token)
         {
             using (var client = new HttpClient { Timeout = System.TimeSpan.FromMinutes(10) })
             {
@@ -19,7 +19,8 @@ namespace ModUploader
                     form.Add(new StreamContent(file), "filedata", Path.GetFileName(zip));
                     form.Add(new StringContent(version), "version");
                     form.Add(new StringContent(note), "changelog");
-                    form.Add(new StringContent("true"), "active");
+                    form.Add(new StringContent(active ? "true" : "false"), "active");
+                    if (metadata != null) form.Add(new StringContent(metadata), "metadata_blob");
                     var response = client.PostAsync($"https://g-{game}.modapi.io/v1/games/{game}/mods/{mod}/files", form).GetAwaiter().GetResult();
                     string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                     if ((int)response.StatusCode == 201)
