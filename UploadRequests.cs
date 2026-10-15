@@ -26,13 +26,14 @@ namespace ModUploader
      *     "visibility": "Private | Friends | Public | Unlisted",
      *     "tags": ["the chosen tags"],
      *     "content": "the folder to upload, the mod's folder in Mods by default",
+     *     "updateDescription": true, "updateVisibility": true, "updatePreview": true, "updateTags": true,
      *     "create": false,
      *     "steam": true,
      *     "modio": { "game": 3659, "mod": 123, "zip": "path", "version": "1.0", "active": true, "metadata": "...", "tokenFile": "..." }
      *   }
      *
-     * What the request leaves out stays as the last upload from the game's
-     * panel left it (name, description, visibility, tags and thumbnail, by its
+     * What the request leaves out is sent as the last upload left it, the
+     * "update..." keys turn each of those off (name, description, visibility, tags and thumbnail, by its
      * toggles). Only items created once (workshop_data.json) can be
      * updated, unless "create" is true: then a mod with no item gets one made
      * (private unless "visibility" says otherwise) before its first upload.
@@ -152,6 +153,9 @@ namespace ModUploader
             });
         }
 
+        // False when the request turns an update off with "updateDescription": false and the like
+        private static bool Enabled(JObject request, string key) => request[key]?.Value<bool>() != false;
+
         private static SteamWorkshopVisibility? Visibility(JObject request)
         {
             string text = (string)request["visibility"];
@@ -165,16 +169,16 @@ namespace ModUploader
                 .SetContentPath((string)request["content"] ?? uploadable.ContentPath);
             builder.SetChangelog(Text(request, "changelog") ?? "");
             string description = Text(request, "description");
-            if (description != null) builder.SetDescription(description);
-            else if (uploadable.UpdateDescription) builder.SetDescription(uploadable.Description);
+            if (Enabled(request, "updateDescription") && description != null) builder.SetDescription(description);
+            else if (Enabled(request, "updateDescription") && uploadable.UpdateDescription) builder.SetDescription(uploadable.Description);
             var visibility = Visibility(request);
-            if (visibility != null) builder.SetVisibility(visibility);
-            else if (uploadable.UpdateVisibility) builder.SetVisibility(uploadable.Visibility);
+            if (Enabled(request, "updateVisibility") && visibility != null) builder.SetVisibility(visibility);
+            else if (Enabled(request, "updateVisibility") && uploadable.UpdateVisibility) builder.SetVisibility(uploadable.Visibility);
             string preview = (string)request["preview"];
-            if (preview != null) builder.SetPreviewPath(preview);
-            else if (uploadable.UpdatePreview) builder.SetPreviewPath(uploadable.PreviewPath);
-            if (request["tags"] is JArray tags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(tags.Select(t => (string)t));
-            else if (uploadable.UpdateTags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(uploadable.ChosenTags);
+            if (Enabled(request, "updatePreview") && preview != null) builder.SetPreviewPath(preview);
+            else if (Enabled(request, "updatePreview") && uploadable.UpdatePreview) builder.SetPreviewPath(uploadable.PreviewPath);
+            if (Enabled(request, "updateTags") && request["tags"] is JArray tags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(tags.Select(t => (string)t));
+            else if (Enabled(request, "updateTags") && uploadable.UpdateTags) builder.AddMandatoryTags(uploadable.MandatoryTags).AddChosenTags(uploadable.ChosenTags);
             var update = builder.Build();
             uploadable.OnUpdateRequestCreated(update);
 

@@ -19,7 +19,7 @@ Put `ModUploader-request.json` in your Timberborn folder (`~/Documents/Timberbor
 }
 ```
 
-Only `mod` is required, and `create` for a mod's first upload. What the request leaves out stays as the last upload from the game's panel left it.
+Only `mod` is required, and `create` for a mod's first upload. What the request leaves out is sent as the last upload left it (the mod's manifest description and thumbnail, by default). To leave the Workshop's description, visibility, preview or tags alone, set `updateDescription`, `updateVisibility`, `updatePreview` or `updateTags` to `false`: `examples/changelog-only.json` uploads just the content and the change note. `examples/request.json` sets everything. The title is always sent.
 
 - **Steam.** Steam has to be running and signed in. A mod with no Workshop item gets one when the request sets `"create": true` (private unless `visibility` says otherwise). `"steam": false` skips it.
 - **mod.io.** Add `modio` to the request and put an OAuth2 access token with write access (an API key can only read) in `~/.config/timberborn-mod-uploader/modio-token` (under your user profile on Windows), or in the file `modio.tokenFile` names. Without the token it's skipped.

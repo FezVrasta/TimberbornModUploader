@@ -1,0 +1,8 @@
+{
+  "mod": "myModId",
+  "changelog": "Fixed the crash on load.",
+  "updateDescription": false,
+  "updateVisibility": false,
+  "updatePreview": false,
+  "updateTags": false
+}

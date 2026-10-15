@@ -1,0 +1,10 @@
+{
+  "mod": "myModId",
+  "title": "My Mod",
+  "descriptionFile": "/path/to/workshop-description.txt",
+  "changelog": "Fixed the crash on load.",
+  "preview": "/path/to/preview.png",
+  "visibility": "Public",
+  "tags": ["Buildings"],
+  "modio": { "game": 3659, "mod": 123456, "zip": "/path/to/MyMod-1.0.zip", "version": "1.0" }
+}
