@@ -92,7 +92,8 @@ namespace ModUploader
                     StartModIo(request);
                     return;
                 }
-                UploadToSteam(request);
+                if (request["map"] != null) UploadMap(request);
+                else UploadToSteam(request);
             }
             catch (Exception e)
             {
@@ -150,6 +151,43 @@ namespace ModUploader
                 uploadable.OnItemCreated(response.ItemId, name, visibility, tags);
                 uploadable.Clear();
                 Update(request, mod, _container.GetInstance<SteamWorkshopUploadableModFactory>().Create(mod));
+            });
+        }
+
+        /**
+         * A map's Workshop item updated with the map file: "map" is the .timber, "item" its Workshop item. Only the
+         * file and the change note go unless the request gives a "title", "description", "preview" or "visibility".
+         */
+        private void UploadMap(JObject request)
+        {
+            if (!_container.GetInstance<SteamManager>().Initialized)
+            {
+                Fail("Steam isn't running", request);
+                return;
+            }
+            string map = (string)request["map"];
+            if (!File.Exists(map))
+            {
+                Fail($"no map at {map}", request);
+                return;
+            }
+            ulong item = request["item"].Value<ulong>();
+            string content = Path.Combine(Path.GetTempPath(), "ModUploader-map-" + item);
+            if (Directory.Exists(content)) Directory.Delete(content, true);
+            Directory.CreateDirectory(content);
+            File.Copy(map, Path.Combine(content, Path.GetFileName(map)));
+            string title = (string)request["title"] ?? Path.GetFileNameWithoutExtension(map);
+            var builder = new SteamWorkshopUpdateRequest.Builder(item, title).SetContentPath(content);
+            builder.SetChangelog(Text(request, "changelog") ?? "");
+            string description = Text(request, "description");
+            if (description != null) builder.SetDescription(description);
+            if (Visibility(request) is { } visibility) builder.SetVisibility(visibility);
+            if ((string)request["preview"] is { } preview) builder.SetPreviewPath(preview);
+            Plugin.Log($"Uploading the map {map} to item {item}");
+            _container.GetInstance<SteamWorkshopItemUpdater>().Update(builder.Build(), response =>
+            {
+                _outcomes.Add(response.Successful ? $"steam ok {item}" : $"steam failed {response.ResultMessage}");
+                StartModIo(request);
             });
         }
 
