@@ -48,7 +48,7 @@
   <!-- A test run is using the Mods folder: don't swap the DLLs it plays -->
   <PropertyGroup>
     <BBTestLock>$([System.IO.Path]::GetTempPath())bb-run-lock</BBTestLock>
-    <InstallBlockedByTests Condition="Exists('$(BBTestLock)') AND '$(BB_HOLDS_LOCK)' != '1'">true</InstallBlockedByTests>
+    <InstallBlockedByTests Condition="Exists('$(BBTestLock)/home-mods') AND '$(BB_HOLDS_LOCK)' != '1'">true</InstallBlockedByTests>
   </PropertyGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(InstallBlockedByTests)' != 'true'">
